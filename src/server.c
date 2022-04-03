@@ -17,6 +17,8 @@ void cleanup() {
     }
 }
 
+
+
 int recv_wrapper(int peer_socket, void *data, size_t size) {
     ssize_t len = recv(peer_socket, data, size, 0);
     if (len == -1) {
@@ -40,16 +42,18 @@ int recv_file_wrapper(int peer_socket,
     ssize_t write_len;
     ssize_t read_len;
     do {
-        read_len = recv(peer_socket, buffer, sizeof(buffer_size), 0);
+        read_len = recv(peer_socket, buffer, buffer_size, 0);
         if (read_len == -1) {
             perror("recv error");
             return 1;
         }
+        printf("Received %zd bytes\n", read_len);
         write_len = write(fd_out, buffer, read_len);
         if (write_len == -1) {
             perror("write error");
             return 1;
         }
+        printf("Wrote %zd bytes\n", write_len);
         size -= write_len;
     } while (size > 0 && write_len > 0);
     if (size != 0) {
