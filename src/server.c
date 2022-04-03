@@ -17,7 +17,7 @@ void cleanup() {
     }
 }
 
-
+char path_to_folder[PATH_MAX] = "./";
 
 int recv_wrapper(int peer_socket, void *data, size_t size) {
     ssize_t len = recv(peer_socket, data, size, 0);
@@ -89,7 +89,9 @@ void *handler(void *data) {
     printf("Saving %s...\n", file_name);
 
     // ----- File data -----
-    int fd_out = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    char file_path[PATH_MAX];
+    snprintf(file_path, sizeof(file_path), "%s/%s", path_to_folder, file_name);
+    int fd_out = open(file_path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if (fd_out == -1) {
         perror("open");
         goto release_and_exit;
@@ -109,19 +111,42 @@ release_and_exit:
     pthread_exit(NULL);
 }
 
+void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {
+    int opt;
+    while ((opt = getopt(argc, argv, "p:f:")) != -1) {
+        char *endptr;
+        switch (opt) {
+            case 'p':
+                server_address->sin_port = htons(strtol(optarg, &endptr, 10));
+                if (*endptr != '\0') {
+                    fprintf(stderr, "Bad port: %s\n", optarg);
+                    exit(EXIT_FAILURE);
+                }
+            case 'f':
+                snprintf(path_to_folder, sizeof(path_to_folder), "%s", optarg);
+                break;
+            default:
+                fprintf(stderr, "Usage: %s [-p port] [-f folder]\n", argv[0]);
+                exit(EXIT_FAILURE);
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
     if (atexit(cleanup)) {
         PERROR_EXIT("setup() error")
     }
 
+    struct sockaddr_in server_address = {.sin_family = DOMAIN,
+                                         .sin_addr.s_addr = htonl(INADDR_ANY),
+                                         .sin_port = htons(DEFAULT_PORT)};
+
+    parse_args(argc, argv, &server_address);
+
     server_socket = socket(DOMAIN, SOCK_STREAM, 0);
     if (server_socket == -1) {
         PERROR_EXIT("socket() error")
     }
-
-    struct sockaddr_in server_address = {.sin_family = DOMAIN,
-                                         .sin_addr.s_addr = htonl(INADDR_ANY),
-                                         .sin_port = htons(DEFAULT_PORT)};
 
     if (bind(server_socket, (struct sockaddr *)&server_address,
              sizeof(server_address))) {
