@@ -40,6 +40,24 @@ void send_wrapper(void *data, size_t size) {
     printf("Ok, sent %zd bytes\n", sent_bytes);
 }
 
+void send_file_wrapper(size_t size) {
+    size_t len = size;
+    ssize_t ret;
+    off_t offset = 0;
+    do {
+        ret = sendfile(server_socket, fd, &offset, len);
+        if (ret == -1) {
+            PERROR_EXIT("sendfile")
+        }
+        len -= ret;
+    } while (len > 0 && ret > 0);
+    if (len != 0) {
+        fprintf(stderr, "Bad, sent %zd out of %zd bytes", size - len, size);
+        exit(EXIT_FAILURE);
+    }
+    printf("Ok, sent %zd bytes\n", size);
+}
+
 void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {
     int opt;
     while ((opt = getopt(argc, argv, "a:p:n:")) != -1) {
@@ -139,22 +157,7 @@ int main(int argc, char *argv[]) {
     // ----- File data -----
 
     printf("Sending file data...\n");
-    size_t len = stat_buffer.st_size;
-    ssize_t ret;
-    off_t offset = 0;
-    do {
-        ret = sendfile(server_socket, fd, &offset, len);
-        if (ret == -1) {
-            PERROR_EXIT("sendfile")
-        }
-        len -= ret;
-    } while (len > 0 && ret > 0);
-    if (len != 0) {
-        fprintf(stderr, "Bad, sent %zd out of %zd bytes",
-                stat_buffer.st_size - len, stat_buffer.st_size);
-        exit(EXIT_FAILURE);
-    }
-    printf("Ok, sent %zd bytes\n", stat_buffer.st_size);
+    send_file_wrapper(stat_buffer.st_size);
 
     // -----
     printf("Closing socket...\n");
