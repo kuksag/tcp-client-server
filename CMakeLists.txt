@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
-
 project(client-server-tcp-file-sender C)
 
-#add_executable(backend-test)
-#add_executable(server-test)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 
 add_executable(server src/server.c)
 add_executable(client src/client.c)
+target_link_libraries(server PRIVATE Threads::Threads)
+
