@@ -31,7 +31,7 @@ char file_name_to_save[NAME_MAX];
 void send_wrapper(void *data, size_t size) {
     ssize_t sent_bytes = send(server_socket, data, size, 0);
     if (sent_bytes == -1) {
-        perror("send error");
+        perror("send");
         exit(EXIT_FAILURE);
     } else if (sent_bytes != size) {
         fprintf(stderr, "Bad, sent %zd out of %zd bytes", sent_bytes, size);
@@ -49,17 +49,17 @@ void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {
             case 'a':
                 code = inet_pton(DOMAIN, optarg, &server_address->sin_addr);
                 if (code == 0) {
-                    fprintf(stderr, "Bad address\n");
+                    fprintf(stderr, "Bad address: %s\n", optarg);
                     exit(EXIT_FAILURE);
                 } else if (code == -1) {
-                    fprintf(stderr, "Bad domain\n");
+                    fprintf(stderr, "Bad domain: %s\n", optarg);
                     exit(EXIT_FAILURE);
                 }
                 break;
             case 'p':
                 server_address->sin_port = htons(strtol(optarg, &endptr, 10));
                 if (*endptr != '\0') {
-                    fprintf(stderr, "Bad port\n");
+                    fprintf(stderr, "Bad port: %s\n", optarg);
                     exit(EXIT_FAILURE);
                 }
             case 'n':
@@ -101,30 +101,29 @@ int main(int argc, char *argv[]) {
     }
 
     if ((fd = open(filename, O_RDONLY)) == -1) {
-        fprintf(stdout, "Error while opening '%s': %s\n", filename,
-                strerror(errno));
+        fprintf(stdout, "open(%s) error: %s\n", filename, strerror(errno));
         exit(EXIT_FAILURE);
     }
 
     struct stat stat_buffer;
     if (fstat(fd, &stat_buffer)) {
-        PERROR_EXIT("fstat error")
+        PERROR_EXIT("fstat")
     }
 
     server_socket = socket(DOMAIN, SOCK_STREAM, 0);
     if (server_socket == -1) {
-        PERROR_EXIT("Can't create a server socket")
+        PERROR_EXIT("socket")
     }
 
     int socket_opt = -1;
     if (setsockopt(server_socket, IPPROTO_TCP, TCP_CORK, &socket_opt,
                    sizeof(socket_opt))) {
-        PERROR_EXIT("setsockopt error")
+        PERROR_EXIT("setsockopt")
     }
 
     if (connect(server_socket, (struct sockaddr *)&server_address,
                 sizeof(server_address))) {
-        PERROR_EXIT("Can't connect")
+        PERROR_EXIT("connect")
     }
 
     // ----- File size -----
@@ -146,7 +145,7 @@ int main(int argc, char *argv[]) {
     do {
         ret = sendfile(server_socket, fd, &offset, len);
         if (ret == -1) {
-            PERROR_EXIT("sendfile error")
+            PERROR_EXIT("sendfile")
         }
         len -= ret;
     } while (len > 0 && ret > 0);

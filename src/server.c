@@ -22,14 +22,14 @@ void cleanup() {
 
 int main(int argc, char *argv[]) {
     if (atexit(cleanup)) {
+        PERROR_EXIT("setup() error")
         perror("Error while setup");
         exit(1);
     }
 
     server_socket = socket(DOMAIN, SOCK_STREAM, 0);
     if (server_socket == -1) {
-        perror("Can't create an server_socket");
-        exit(EXIT_FAILURE);
+        PERROR_EXIT("socket() error")
     }
 
     struct sockaddr_in server_address = {.sin_family = DOMAIN,
@@ -38,14 +38,13 @@ int main(int argc, char *argv[]) {
 
     if (bind(server_socket, (struct sockaddr *)&server_address,
              sizeof(server_address))) {
-        perror("Can't bind");
-        exit(EXIT_FAILURE);
+        PERROR_EXIT("bind() error")
     }
 
     if (listen(server_socket, MAX_NO_CLIENTS)) {
-        perror("Can't listen");
-        exit(EXIT_FAILURE);
+        PERROR_EXIT("listen() error")
     }
+
     printf("Listening...\n");
 
     // client handler
