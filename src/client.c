@@ -1,18 +1,78 @@
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/sendfile.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "common.h"
 
-int file_ds;
+int fd = -1;
+int server_socket = -1;
 
 void cleanup() {
-    if (file_ds != -1) {
-        close(file_ds);
+    if (fd != -1) {
+        close(fd);
+    }
+    if (server_socket != -1) {
+        close(server_socket);
+    }
+}
+
+char file_name_to_save[NAME_MAX];
+
+void send_wrapper(void *data, size_t size) {
+    ssize_t sent_bytes = send(server_socket, data, size, 0);
+    if (sent_bytes == -1) {
+        perror("send error");
+        exit(EXIT_FAILURE);
+    } else if (sent_bytes != size) {
+        fprintf(stderr, "Bad, sent %zd out of %zd bytes", sent_bytes, size);
+        exit(EXIT_FAILURE);
+    }
+    printf("Ok, sent %zd bytes\n", sent_bytes);
+}
+
+void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {
+    int opt;
+    while ((opt = getopt(argc, argv, "a:p:n:")) != -1) {
+        int code;
+        char *endptr;
+        switch (opt) {
+            case 'a':
+                code = inet_pton(DOMAIN, optarg, &server_address->sin_addr);
+                if (code == 0) {
+                    fprintf(stderr, "Bad address\n");
+                    exit(EXIT_FAILURE);
+                } else if (code == -1) {
+                    fprintf(stderr, "Bad domain\n");
+                    exit(EXIT_FAILURE);
+                }
+                break;
+            case 'p':
+                server_address->sin_port = htons(strtol(optarg, &endptr, 10));
+                if (*endptr != '\0') {
+                    fprintf(stderr, "Bad port\n");
+                    exit(EXIT_FAILURE);
+                }
+            case 'n':
+                snprintf(file_name_to_save, sizeof(file_name_to_save), "%s",
+                         optarg);
+                break;
+            default:
+                fprintf(stderr,
+                        "Usage: %s [-a address] [-p port] [-n "
+                        "result_name] filename\n",
+                        argv[0]);
+                exit(EXIT_FAILURE);
+        }
     }
 }
 
@@ -22,47 +82,82 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    char *filename;
-    char *address;
-    char *result_name;
+    struct sockaddr_in server_address = {
+        .sin_family = DOMAIN,
+        .sin_addr.s_addr = DEFAULT_ADDR,
+        .sin_port = htons(DEFAULT_PORT),
+    };
 
-    int opt;
-    while ((opt = getopt(argc, argv, "a:n:")) != -1) {
-        switch (opt) {
-            case 'a':
-                address = optarg;
-                break;
-            case 'n':
-                result_name = optarg;
-                break;
-            default:
-                fprintf(stderr,
-                        "Usage: %s [-a server_address] [-n "
-                        "result_name] filename\n",
-                        argv[0]);
-                exit(EXIT_FAILURE);
-        }
-    }
-
+    parse_args(argc, argv, &server_address);
     if (optind >= argc) {
         fprintf(stderr, "Expected argument after options\n");
         exit(EXIT_FAILURE);
     }
 
-    filename = argv[optind];
+    char *filename = argv[optind];
+    if (strlen(file_name_to_save) == 0) {
+        snprintf(file_name_to_save, sizeof(file_name_to_save), "%s",
+                 argv[optind]);
+    }
 
-    if ((file_ds = open(filename, O_RDONLY)) == -1) {
+    if ((fd = open(filename, O_RDONLY)) == -1) {
         fprintf(stdout, "Error while opening '%s': %s\n", filename,
                 strerror(errno));
         exit(EXIT_FAILURE);
     }
 
     struct stat stat_buffer;
-    if (fstat(file_ds, &stat_buffer)) {
-        perror("fstat error");
-        exit(EXIT_FAILURE);
+    if (fstat(fd, &stat_buffer)) {
+        PERROR_EXIT("fstat error")
     }
 
+    server_socket = socket(DOMAIN, SOCK_STREAM, 0);
+    if (server_socket == -1) {
+        PERROR_EXIT("Can't create a server socket")
+    }
 
+    int socket_opt = -1;
+    if (setsockopt(server_socket, IPPROTO_TCP, TCP_CORK, &socket_opt,
+                   sizeof(socket_opt))) {
+        PERROR_EXIT("setsockopt error")
+    }
+
+    if (connect(server_socket, (struct sockaddr *)&server_address,
+                sizeof(server_address))) {
+        PERROR_EXIT("Can't connect")
+    }
+
+    // ----- File size -----
+
+    printf("Sending file size...\n");
+    send_wrapper(&stat_buffer.st_size, sizeof(stat_buffer.st_size));
+
+    // ----- File name -----
+
+    printf("Sending file name...\n");
+    send_wrapper(file_name_to_save, sizeof(file_name_to_save));
+
+    // ----- File data -----
+
+    printf("Sending file data...\n");
+    size_t len = stat_buffer.st_size;
+    ssize_t ret;
+    off_t offset = 0;
+    do {
+        ret = sendfile(server_socket, fd, &offset, len);
+        if (ret == -1) {
+            PERROR_EXIT("sendfile error")
+        }
+        len -= ret;
+    } while (len > 0 && ret > 0);
+    if (len != 0) {
+        fprintf(stderr, "Bad, sent %zd out of %zd bytes",
+                stat_buffer.st_size - len, stat_buffer.st_size);
+        exit(EXIT_FAILURE);
+    }
+    printf("Ok, sent %zd bytes\n", stat_buffer.st_size);
+
+    // -----
+    printf("Closing socket...\n");
     exit(EXIT_SUCCESS);
 }
