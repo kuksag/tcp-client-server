@@ -27,7 +27,7 @@ int recv_wrapper(int peer_socket, void *data, size_t size) {
     }
     if (len != size) {
         fprintf(stderr,
-                "Didn't receive full package, expected: %zd, got: %zd\n", size,
+                "Didn't receive full package, expected: %zu, got: %zd\n", size,
                 len);
         return 1;
     }
@@ -38,9 +38,8 @@ int recv_file_wrapper(int peer_socket, int fd_out, size_t file_size) {
     char buffer[BUFFER_SIZE];
     size_t size = file_size;
     ssize_t write_len;
-    ssize_t read_len;
     do {
-        read_len = recv(peer_socket, buffer, sizeof(buffer), 0);
+         ssize_t read_len = recv(peer_socket, buffer, sizeof(buffer), 0);
         if (read_len == -1) {
             perror("recv error");
             return 1;
@@ -56,7 +55,7 @@ int recv_file_wrapper(int peer_socket, int fd_out, size_t file_size) {
     } while (size > 0 && write_len > 0);
     if (size != 0) {
         fprintf(stderr,
-                "Didn't receive full package, expected: %zd, got: %zd\n",
+                "Didn't receive full package, expected: %zu, got: %zu\n",
                 file_size, file_size - size);
         return 1;
     }

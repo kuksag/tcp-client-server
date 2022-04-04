@@ -34,7 +34,7 @@ void send_wrapper(void *data, size_t size) {
         perror("send");
         exit(EXIT_FAILURE);
     } else if (sent_bytes != size) {
-        fprintf(stderr, "Bad, sent %zd out of %zd bytes", sent_bytes, size);
+        fprintf(stderr, "Bad, sent %zd out of %zu bytes", sent_bytes, size);
         exit(EXIT_FAILURE);
     }
     printf("Ok, sent %zd bytes\n", sent_bytes);
@@ -52,10 +52,10 @@ void send_file_wrapper(size_t size) {
         len -= ret;
     } while (len > 0 && ret > 0);
     if (len != 0) {
-        fprintf(stderr, "Bad, sent %zd out of %zd bytes", size - len, size);
+        fprintf(stderr, "Bad, sent %zu out of %zu bytes", size - len, size);
         exit(EXIT_FAILURE);
     }
-    printf("Ok, sent %zd bytes\n", size);
+    printf("Ok, sent %zu bytes\n", size);
 }
 
 void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {

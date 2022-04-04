@@ -9,13 +9,9 @@ if (clang-tidy)
     set(CMAKE_C_CLANG_TIDY clang-tidy -checks=-*,readability-*)
 endif ()
 
-find_program(CMAKE_C_CPPCHECK NAMES cppcheck)
-if (CMAKE_C_CPPCHECK)
-    list(
-            APPEND CMAKE_CXX_CPPCHECK
-            "--enable=all"
-            "--language=c"
-    )
+find_program(cppcheck cppcheck)
+if (cppcheck)
+    set(CMAKE_C_CPPCHECK cppcheck --enable=all)
 endif ()
 
 add_executable(server src/server.c)
