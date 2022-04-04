@@ -33,16 +33,13 @@ int recv_wrapper(int peer_socket, void *data, size_t size) {
     return 0;
 }
 
-int recv_file_wrapper(int peer_socket,
-                      int fd_out,
-                      size_t file_size,
-                      void *buffer,
-                      size_t buffer_size) {
+int recv_file_wrapper(int peer_socket, int fd_out, size_t file_size) {
+    char buffer[BUFFER_SIZE];
     size_t size = file_size;
     ssize_t write_len;
     ssize_t read_len;
     do {
-        read_len = recv(peer_socket, buffer, buffer_size, 0);
+        read_len = recv(peer_socket, buffer, sizeof(buffer), 0);
         if (read_len == -1) {
             perror("recv error");
             return 1;
@@ -96,9 +93,7 @@ void *handler(void *data) {
         perror("open");
         goto release_and_exit;
     }
-    char buffer[BUFFER_SIZE];
-    if (recv_file_wrapper(peer_socket, fd_out, file_size, buffer,
-                          sizeof(buffer))) {
+    if (recv_file_wrapper(peer_socket, fd_out, file_size)) {
         goto release_and_exit;
     }
 
