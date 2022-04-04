@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/sendfile.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -41,22 +40,34 @@ void send_wrapper(void *data, size_t size) {
     printf("Ok, sent %zd bytes\n", sent_bytes);
 }
 
-void send_file_wrapper(size_t size) {
-    size_t len = size;
-    ssize_t ret;
-    off_t offset = 0;
+void send_file_wrapper(size_t file_size) {
+    /*
+     * At first <sys/sendfile.h> was used
+     * https://github.com/kuksag/tcp-client-server/blob/893e41efcb2e9ae932696f7c2b0579c1c3c1049c/src/client.c#L44
+     * But it's not specified in any POSIX standards
+     */
+    char buffer[BUFFER_SIZE];
+    size_t size = file_size;
+    ssize_t send_len;
     do {
-        ret = sendfile(server_socket, fd, &offset, len);
-        if (ret == -1) {
-            PERROR_EXIT("sendfile")
+        ssize_t read_len = read(fd, buffer, sizeof(buffer));
+        if (read_len == -1) {
+            PERROR_EXIT("read");
         }
-        len -= ret;
-    } while (len > 0 && ret > 0);
-    if (len != 0) {
-        fprintf(stderr, "Bad, sent %zu out of %zu bytes", size - len, size);
+        printf("Read %zd bytes\n", read_len);
+        send_len = send(server_socket, buffer, read_len, 0);
+        if (send_len == -1) {
+            PERROR_EXIT("send");
+        }
+        printf("Sent %zd bytes\n", send_len);
+        size -= send_len;
+    } while (size > 0 && send_len > 0);
+    if (size != 0) {
+        fprintf(stderr, "Bad, sent %zu out of %zu bytes\n", file_size - size,
+                file_size);
         exit(EXIT_FAILURE);
     }
-    printf("Ok, sent %zu bytes\n", size);
+    printf("Ok, sent %zu bytes\n", file_size);
 }
 
 void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {
