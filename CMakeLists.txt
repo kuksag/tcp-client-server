@@ -11,9 +11,13 @@ endif ()
 
 find_program(cppcheck cppcheck)
 if (cppcheck)
-    set(CMAKE_C_CPPCHECK cppcheck --enable=all)
+    set(CMAKE_C_CPPCHECK cppcheck --enable=all --suppress=missingIncludeSystem)
 endif ()
 
 add_executable(server src/server.c)
 add_executable(client src/client.c)
+
 target_link_libraries(server PRIVATE Threads::Threads)
+
+target_compile_options(server PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(client PRIVATE -Wall -Wextra -Wpedantic)

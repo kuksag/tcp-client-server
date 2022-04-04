@@ -25,7 +25,7 @@ int recv_wrapper(int peer_socket, void *data, size_t size) {
         perror("recv");
         return 1;
     }
-    if (len != size) {
+    if ((size_t)len != size) {
         fprintf(stderr,
                 "Didn't receive full package, expected: %zu, got: %zd\n", size,
                 len);
@@ -39,7 +39,7 @@ int recv_file_wrapper(int peer_socket, int fd_out, size_t file_size) {
     size_t size = file_size;
     ssize_t write_len;
     do {
-         ssize_t read_len = recv(peer_socket, buffer, sizeof(buffer), 0);
+        ssize_t read_len = recv(peer_socket, buffer, sizeof(buffer), 0);
         if (read_len == -1) {
             perror("recv error");
             return 1;
@@ -89,11 +89,12 @@ void *handler(void *data) {
     char file_path[PATH_MAX];
     int ret = snprintf(file_path, sizeof(file_path), "%s/%s", path_to_folder,
                        file_name);
-    if (ret >= sizeof(file_path)) {
-        fprintf(stderr, "\"%s/%s\" too long", path_to_folder, file_name);
-        goto release_and_exit;
-    } else if (ret < 0) {
+    if (ret < 0) {
         perror("snprintf");
+        goto release_and_exit;
+    }
+    if ((size_t)ret >= sizeof(file_path)) {
+        fprintf(stderr, "\"%s/%s\" too long", path_to_folder, file_name);
         goto release_and_exit;
     }
     int fd_out = open(file_path, O_CREAT | O_WRONLY | O_TRUNC,
@@ -127,6 +128,7 @@ void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {
                     fprintf(stderr, "Bad port: %s\n", optarg);
                     exit(EXIT_FAILURE);
                 }
+                break;
             case 'f':
                 snprintf(path_to_folder, sizeof(path_to_folder), "%s", optarg);
                 break;

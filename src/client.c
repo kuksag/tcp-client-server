@@ -33,7 +33,8 @@ void send_wrapper(void *data, size_t size) {
     if (sent_bytes == -1) {
         perror("send");
         exit(EXIT_FAILURE);
-    } else if (sent_bytes != size) {
+    }
+    if ((size_t)sent_bytes != size) {
         fprintf(stderr, "Bad, sent %zd out of %zu bytes", sent_bytes, size);
         exit(EXIT_FAILURE);
     }
@@ -69,7 +70,8 @@ void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {
                 if (code == 0) {
                     fprintf(stderr, "Bad address: %s\n", optarg);
                     exit(EXIT_FAILURE);
-                } else if (code == -1) {
+                }
+                if (code == -1) {
                     fprintf(stderr, "Bad domain: %s\n", optarg);
                     exit(EXIT_FAILURE);
                 }
@@ -81,6 +83,7 @@ void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {
                     fprintf(stderr, "Bad port: %s\n", optarg);
                     exit(EXIT_FAILURE);
                 }
+                break;
             case 'n':
                 snprintf(file_name_to_save, sizeof(file_name_to_save), "%s",
                          optarg);
