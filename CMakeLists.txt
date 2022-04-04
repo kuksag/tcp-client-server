@@ -4,6 +4,7 @@ project(client-server-tcp-file-sender C)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+set(CMAKE_C_CLANG_TIDY clang-tidy -checks=-*,readability-*)
 
 add_executable(server src/server.c)
 add_executable(client src/client.c)

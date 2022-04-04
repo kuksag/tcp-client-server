@@ -24,7 +24,8 @@ int recv_wrapper(int peer_socket, void *data, size_t size) {
     if (len == -1) {
         perror("recv");
         return 1;
-    } else if (len != size) {
+    }
+    if (len != size) {
         fprintf(stderr,
                 "Didn't receive full package, expected: %zd, got: %zd\n", size,
                 len);
@@ -96,7 +97,8 @@ void *handler(void *data) {
         perror("snprintf");
         goto release_and_exit;
     }
-    int fd_out = open(file_path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    int fd_out = open(file_path, O_CREAT | O_WRONLY | O_TRUNC,
+                      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (fd_out == -1) {
         perror("open");
         goto release_and_exit;
@@ -120,7 +122,8 @@ void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {
         char *endptr;
         switch (opt) {
             case 'p':
-                server_address->sin_port = htons(strtol(optarg, &endptr, 10));
+                server_address->sin_port =
+                    htons(strtol(optarg, &endptr, DECIMAL_BASE));
                 if (*endptr != '\0') {
                     fprintf(stderr, "Bad port: %s\n", optarg);
                     exit(EXIT_FAILURE);
