@@ -41,24 +41,24 @@ int recv_file_wrapper(int peer_socket, int fd_out, size_t file_size) {
     do {
         ssize_t read_len = recv(peer_socket, buffer, sizeof(buffer), 0);
         if (read_len == -1) {
-            perror("recv error");
+            perror("recv");
             return 1;
         }
         printf("Received %zd bytes\n", read_len);
         write_len = write(fd_out, buffer, read_len);
         if (write_len == -1) {
-            perror("write error");
+            perror("write");
             return 1;
         }
         printf("Wrote %zd bytes\n", write_len);
         size -= write_len;
     } while (size > 0 && write_len > 0);
     if (size != 0) {
-        fprintf(stderr,
-                "Didn't receive full package, expected: %zu, got: %zu\n",
-                file_size, file_size - size);
+        fprintf(stderr, "Bad, received %zu out of %zu bytes\n",
+                file_size - size, file_size);
         return 1;
     }
+    printf("Ok, received %zu\n", file_size);
     return 0;
 }
 
@@ -141,7 +141,7 @@ void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {
 
 int main(int argc, char *argv[]) {
     if (atexit(cleanup)) {
-        PERROR_EXIT("setup() error")
+        PERROR_EXIT("setup")
     }
 
     struct sockaddr_in server_address = {.sin_family = DOMAIN,
@@ -152,16 +152,16 @@ int main(int argc, char *argv[]) {
 
     server_socket = socket(DOMAIN, SOCK_STREAM, 0);
     if (server_socket == -1) {
-        PERROR_EXIT("socket() error")
+        PERROR_EXIT("socket")
     }
 
     if (bind(server_socket, (struct sockaddr *)&server_address,
              sizeof(server_address))) {
-        PERROR_EXIT("bind() error")
+        PERROR_EXIT("bind")
     }
 
     if (listen(server_socket, MAX_NO_CLIENTS)) {
-        PERROR_EXIT("listen() error")
+        PERROR_EXIT("listen")
     }
 
     printf("Listening...\n");
