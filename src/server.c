@@ -87,7 +87,15 @@ void *handler(void *data) {
 
     // ----- File data -----
     char file_path[PATH_MAX];
-    snprintf(file_path, sizeof(file_path), "%s/%s", path_to_folder, file_name);
+    int ret = snprintf(file_path, sizeof(file_path), "%s/%s", path_to_folder,
+                       file_name);
+    if (ret >= sizeof(file_path)) {
+        fprintf(stderr, "\"%s/%s\" too long", path_to_folder, file_name);
+        goto release_and_exit;
+    } else if (ret < 0) {
+        perror("snprintf");
+        goto release_and_exit;
+    }
     int fd_out = open(file_path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if (fd_out == -1) {
         perror("open");
