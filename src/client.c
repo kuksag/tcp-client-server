@@ -75,7 +75,8 @@ void parse_args(int argc, char *argv[], struct sockaddr_in *server_address) {
                 }
                 break;
             case 'p':
-                server_address->sin_port = htons(strtol(optarg, &endptr, 10));
+                server_address->sin_port =
+                    htons(strtol(optarg, &endptr, DECIMAL_BASE));
                 if (*endptr != '\0') {
                     fprintf(stderr, "Bad port: %s\n", optarg);
                     exit(EXIT_FAILURE);
